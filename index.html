@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f7f8fc" />
+  <title>나만의 서울 여행 지도</title>
+  <style>
+    :root {
+      --bg: #f7f8fc;
+      --surface: #ffffff;
+      --ink: #172338;
+      --muted: #738094;
+      --line: #e8ecf3;
+      --primary: #4c66e4;
+      --primary-soft: #eef1ff;
+      --shadow: 0 18px 48px rgba(33, 51, 92, 0.07);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+        "Malgun Gothic", "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; }
+    .page { max-width: 1500px; margin: auto; padding: 0 36px 36px; }
+    .topbar {
+      height: 88px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: -0.5px; }
+    .brand-icon {
+      width: 40px; height: 40px; display: grid; place-items: center;
+      border-radius: 13px; color: white; font-size: 18px;
+      background: linear-gradient(135deg, #6a80f5, #4058cf);
+      box-shadow: 0 8px 18px rgba(76, 102, 228, 0.2);
+    }
+    .top-caption { color: var(--muted); font-size: 13px; font-weight: 600; }
+    .intro { padding: 45px 0 34px; }
+    .eyebrow {
+      color: var(--primary); font-size: 12px; letter-spacing: 2px;
+      text-transform: uppercase; font-weight: 800;
+    }
+    h1 { margin: 10px 0 10px; font-size: clamp(27px, 3.2vw, 43px); letter-spacing: -1.8px; line-height: 1.3; }
+    .intro p { margin: 0; color: var(--muted); line-height: 1.7; font-size: 15px; }
+    .layout { display: grid; grid-template-columns: 390px minmax(0, 1fr); gap: 22px; align-items: stretch; }
+    .panel, .map-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--shadow); }
+    .panel { padding: 25px 20px 20px; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; padding: 0 4px 20px; }
+    .section-head h2 { margin: 0; font-size: 18px; letter-spacing: -0.5px; }
+    .count { padding: 6px 10px; background: var(--primary-soft); border-radius: 999px; color: var(--primary); font-size: 12px; font-weight: 800; }
+    .place-list { display: grid; gap: 11px; }
+    .place-card {
+      width: 100%; text-align: left; border: 1px solid var(--line); border-radius: 17px;
+      background: #fff; padding: 18px; cursor: pointer;
+      transition: border-color .2s, background .2s, transform .2s, box-shadow .2s;
+    }
+    .place-card:hover { transform: translateY(-2px); border-color: #b4bef6; box-shadow: 0 9px 25px rgba(39, 64, 136, .08); }
+    .place-card:focus-visible { outline: 3px solid #aebcff; outline-offset: 3px; }
+    .place-card[aria-pressed="true"] { background: #f8f9ff; border: 1.5px solid var(--primary); }
+    .place-card-top { display: flex; gap: 13px; align-items: center; }
+    .place-icon { flex: 0 0 auto; width: 49px; height: 49px; display: grid; place-items: center; font-size: 24px; background: #f0f3fa; border-radius: 14px; }
+    .place-name { font-size: 16px; font-weight: 800; letter-spacing: -.35px; }
+    .place-region { margin-top: 4px; font-size: 12px; color: var(--muted); }
+    .place-description { color: #657186; font-size: 13px; line-height: 1.7; margin: 14px 0 0; }
+    .place-card-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 12px; color: var(--muted); }
+    .view-label { color: var(--primary); font-weight: 800; }
+    .panel-foot { margin: 19px 3px 1px; color: #9aa5b6; font-size: 12px; line-height: 1.6; }
+    .map-panel { overflow: hidden; display: flex; flex-direction: column; min-height: 625px; }
+    .map-header { padding: 23px 27px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
+    .map-header h2 { margin: 0 0 6px; font-size: 17px; letter-spacing: -.4px; }
+    .map-header p { margin: 0; font-size: 12px; color: var(--muted); }
+    .status { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; padding: 9px 12px; background: #f3f5f9; color: #66758a; border-radius: 999px; font-weight: 750; font-size: 11px; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #a0abc0; }
+    .map-stage {
+      position: relative; flex: 1; min-height: 450px;
+      display: grid; place-items: center; padding: 30px;
+      background-color: #f9faff;
+      background-image: linear-gradient(#e8ecf6 1px, transparent 1px), linear-gradient(90deg, #e8ecf6 1px, transparent 1px);
+      background-size: 36px 36px;
+    }
+    #map { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .status.is-ready .status-dot { background: #36b587; }
+    .map-infowindow { max-width: 240px; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+    .map-infowindow h3 { margin: 0 0 8px; font-size: 16px; color: #172338; }
+    .map-infowindow p { margin: 0; font-size: 13px; color: #657186; line-height: 1.65; }
+    .map-placeholder {
+      position: relative; z-index: 1; width: min(100%, 410px); padding: 36px 30px;
+      background: rgba(255,255,255,.96); border: 1px solid #e9edf6;
+      border-radius: 22px; box-shadow: 0 22px 65px rgba(42, 60, 118, .10); text-align: center;
+    }
+    .placeholder-icon {
+      width: 67px; height: 67px; border-radius: 20px; margin: 0 auto 22px;
+      background: var(--primary-soft); display: grid; place-items: center; color: var(--primary);
+    }
+    .placeholder-icon svg { width: 29px; height: 29px; }
+    .map-placeholder h3 { margin: 0 0 10px; font-size: 21px; letter-spacing: -.7px; }
+    .map-placeholder p { margin: 0; color: var(--muted); line-height: 1.8; font-size: 13px; }
+    .selected-place { margin: 22px 0 0; padding: 13px 15px; background: #f5f7fc; border-radius: 12px; text-align: left; }
+    .selected-place small { display: block; color: #8590a2; font-size: 11px; margin-bottom: 5px; }
+    .selected-place strong { font-size: 14px; }
+    .map-footer { padding: 17px 26px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; color: #8d99aa; }
+    .map-footer span:last-child { color: var(--primary); font-weight: 750; }
+    @media (max-width: 900px) {
+      .page { padding: 0 20px 24px; }
+      .layout { grid-template-columns: 1fr; }
+      .map-panel { min-height: 520px; }
+    }
+    @media (max-width: 540px) {
+      .page { padding: 0 14px 20px; }
+      .topbar { height: 72px; }
+      .top-caption { display: none; }
+      .intro { padding: 33px 4px 25px; }
+      h1 { letter-spacing: -1.2px; }
+      .panel { padding: 20px 15px; }
+      .map-header { padding: 18px; }
+      .map-header p { line-height: 1.5; }
+      .status { padding: 7px 9px; font-size: 10px; }
+      .map-stage { min-height: 400px; padding: 18px; }
+      .map-placeholder { padding: 28px 20px; }
+      .map-footer { padding: 15px 18px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .place-card { transition: none; }
+    }
+    /* 새 장소 추가와 저장 UI */
+    [hidden] { display: none !important; }
+    .add-actions { display: flex; flex-direction: column; gap: 9px; margin-bottom: 19px; }
+    .add-button { width: 100%; border: 0; background: var(--primary); color: white; cursor: pointer; border-radius: 13px; padding: 14px 18px; font-size: 14px; font-weight: 800; transition: background .2s, transform .2s; }
+    .add-button:hover { background: #394fcb; transform: translateY(-1px); }
+    .add-button:focus-visible, .subtle-button:focus-visible, .delete-button:focus-visible { outline: 3px solid #aebcff; outline-offset: 2px; }
+    .save-note { color: var(--muted); font-size: 11px; text-align: center; }
+    .place-row { position: relative; }
+    .place-row .place-card { padding-right: 48px; }
+    .delete-button { position: absolute; right: 13px; top: 14px; border: 1px solid #e8ecf3; border-radius: 10px; width: 30px; height: 30px; background: white; color: #98a2b3; cursor: pointer; font-size: 15px; display: grid; place-items: center; }
+    .delete-button:hover { color: #d84461; background: #fff1f3; border-color: #fac7d0; }
+    .mine-label { font-size: 10px; font-weight: 800; color: var(--primary); background: var(--primary-soft); padding: 5px 8px; border-radius: 7px; }
+    .place-form { display: grid; gap: 12px; border: 1px solid #dbe2ff; border-radius: 17px; background: #fafbff; padding: 18px; margin-bottom: 17px; }
+    .place-form h3 { font-size: 16px; margin: 0 0 2px; letter-spacing: -.35px; }
+    .place-form .hint { margin: 0; line-height: 1.5; color: var(--muted); font-size: 12px; }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 12px; color: #52617c; font-weight: 700; }
+    .field input, .field textarea, .field select { width: 100%; border: 1px solid #dfe5ef; border-radius: 10px; outline: 0; background: white; padding: 11px 12px; font-family: inherit; color: var(--ink); font-size: 13px; }
+    .field textarea { min-height: 77px; resize: vertical; }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px #4c66e41a; }
+    .field input[readonly] { background: #f0f3fa; color: #697792; cursor: default; }
+    .form-buttons { display: flex; gap: 9px; }
+    .form-buttons .add-button { flex: 1; }
+    .subtle-button { border: 1px solid var(--line); background: white; border-radius: 12px; padding: 11px 15px; color: #58667f; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .map-tip { position: absolute; left: 19px; top: 18px; z-index: 1; max-width: min(320px, calc(100% - 38px)); pointer-events: none; padding: 12px 15px; background: rgba(255,255,255,.95); box-shadow: 0 8px 26px rgba(28, 45, 90, .13); border-radius: 12px; color: #51627d; font-size: 12px; line-height: 1.5; font-weight: 700; }
+    .map-tip strong { color: var(--primary); }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 10; background: #172338; color: white; border-radius: 11px; padding: 12px 19px; font-size: 13px; box-shadow: 0 9px 28px #17233835; max-width: calc(100vw - 30px); text-align: center; }
+    @media (max-width: 540px) { .map-tip { left: 12px; top: 12px; } }
+
+    /* Open-Meteo 날씨 대시보드: 기존 카드/지도 색상 체계 유지 */
+    .weather-dashboard {
+      margin-top: 22px; padding: 27px;
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: 24px; box-shadow: var(--shadow);
+    }
+    .weather-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 20px; }
+    .weather-kicker { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: var(--primary); }
+    .weather-heading h2 { margin: 6px 0 6px; font-size: 22px; letter-spacing: -.7px; }
+    .weather-heading p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .weather-controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+    .weather-selected { padding: 10px 13px; border-radius: 11px; background: var(--primary-soft); color: var(--primary); font-size: 12px; font-weight: 800; }
+    .weather-refresh { border: 1px solid var(--line); background: #fff; color: #596980; border-radius: 11px; padding: 10px 13px; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .weather-refresh:hover { border-color: #b4bef6; color: var(--primary); }
+    .weather-refresh:focus-visible { outline: 3px solid #aebcff; outline-offset: 2px; }
+    .weather-refresh:disabled { opacity: .55; cursor: wait; }
+    .weather-feedback { margin: 0 0 15px; min-height: 18px; color: var(--muted); font-size: 12px; }
+    .weather-feedback[data-error="true"] { color: #bc495d; }
+    .weather-grid { display: grid; grid-template-columns: minmax(280px, 350px) minmax(0, 1fr); gap: 16px; }
+    .weather-current, .weather-forecast { border: 1px solid var(--line); border-radius: 18px; min-width: 0; }
+    .weather-current { padding: 23px; background: linear-gradient(145deg, #f4f6ff, #fff 80%); }
+    .weather-current-top { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+    .weather-small-label { color: #66758b; font-size: 12px; font-weight: 800; }
+    .weather-temperature { margin: 12px 0 3px; font-size: 56px; letter-spacing: -3px; font-weight: 820; line-height: 1; font-variant-numeric: tabular-nums; }
+    .weather-condition { font-size: 14px; font-weight: 750; color: #52617c; margin: 12px 0 0; }
+    .weather-main-icon { font-size: 53px; line-height: 1.1; }
+    .weather-metrics { margin-top: 22px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+    .weather-metric { background: rgba(255,255,255,.88); border: 1px solid #e9edf7; padding: 12px; border-radius: 12px; }
+    .weather-metric span { display: block; color: #8590a2; font-size: 11px; margin-bottom: 6px; }
+    .weather-metric strong { display: block; font-size: 17px; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
+    .weather-sun { margin-top: 14px; display: flex; justify-content: space-between; gap: 10px; color: #66758b; font-size: 12px; }
+    .weather-advice { margin-top: 16px; padding: 14px; background: #ebefff; border-radius: 12px; color: #45547b; font-size: 12px; line-height: 1.65; }
+    .weather-advice strong { display: block; color: #354bba; margin-bottom: 5px; }
+    .weather-forecast { padding: 21px; display: flex; flex-direction: column; gap: 20px; }
+    .weather-block-heading { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 13px; }
+    .weather-block-heading h3 { margin: 0; font-size: 15px; letter-spacing: -.3px; }
+    .weather-block-heading span { font-size: 11px; color: var(--muted); }
+    .weather-hours { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin; }
+    .weather-hour { flex: 0 0 78px; padding: 12px 8px; border-radius: 12px; background: #f7f9fd; display: grid; justify-items: center; gap: 8px; text-align: center; }
+    .weather-hour:first-child { background: #eef1ff; }
+    .weather-hour-time { font-size: 11px; font-weight: 700; color: #6c7891; }
+    .weather-hour-icon { font-size: 23px; line-height: 1.4; }
+    .weather-hour-temp { color: var(--ink); font-size: 14px; font-weight: 850; }
+    .weather-hour-rain { color: #4772cb; font-weight: 750; font-size: 11px; }
+    .weather-days { display: grid; grid-template-columns: repeat(7, minmax(70px, 1fr)); gap: 8px; }
+    .weather-day { padding: 12px 5px; display: grid; justify-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 12px; text-align: center; }
+    .weather-day:first-child { border-color: #b9c5ff; background: #f8f9ff; }
+    .weather-day-name { color: #657186; font-size: 11px; font-weight: 750; }
+    .weather-day-icon { font-size: 22px; line-height: 1.5; }
+    .weather-day-temp { color: var(--ink); font-size: 12px; white-space: nowrap; font-weight: 850; }
+    .weather-day-temp small { color: #9aa5b6; font-size: 11px; }
+    .weather-day-rain { color: #4772cb; font-size: 11px; font-weight: 750; }
+    .weather-empty { display: grid; place-items: center; border: 1px dashed #d9e0ee; border-radius: 12px; color: #97a3b6; font-size: 12px; min-height: 104px; padding: 18px; text-align: center; }
+    .weather-attribution { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 15px; color: #8d99aa; font-size: 11px; line-height: 1.6; }
+    .weather-attribution a { color: var(--primary); text-underline-offset: 2px; }
+    @media (max-width: 1050px) { .weather-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .weather-heading { flex-wrap: wrap; } .weather-controls { justify-content: flex-start; } }
+    @media (max-width: 650px) {
+      .weather-dashboard { padding: 18px 14px; }
+      .weather-heading h2 { font-size: 20px; }
+      .weather-current, .weather-forecast { padding: 17px; }
+      .weather-days { display: flex; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin; }
+      .weather-day { flex: 0 0 84px; }
+      .weather-sun { flex-wrap: wrap; }
+    }
+
+    /* Geoapify 장소 검색 및 주변 장소 탐색 — 기존 디자인과 통합 */
+    .geo-search {
+      margin: 0 0 19px; padding: 17px; border: 1px solid #dfe5f5;
+      border-radius: 18px; background: linear-gradient(155deg, #f8faff, #fff 85%);
+    }
+    .geo-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .geo-heading h3 { font-size: 15px; letter-spacing: -.35px; margin: 0; }
+    .geo-settings-button { background: transparent; border: 0; color: #617397; font-weight: 700; font-size: 11px; padding: 6px 1px; cursor: pointer; }
+    .geo-settings-button:hover { color: var(--primary); }
+    .geo-key-panel { padding: 12px; background: white; border: 1px solid #dfe5f3; border-radius: 12px; margin-bottom: 13px; }
+    .geo-key-panel label { display: block; font-size: 12px; font-weight: 750; color: #52617c; margin-bottom: 7px; }
+    .geo-key-panel p { font-size: 11px; color: var(--muted); line-height: 1.6; margin: 8px 0 0; }
+    .geo-key-panel a, .geo-attribution a { color: var(--primary); text-underline-offset: 2px; }
+    .geo-key-row, .geo-search-row { display: flex; gap: 7px; }
+    .geo-key-row input, .geo-search-row input { min-width: 0; width: 100%; flex: 1; border: 1px solid #dfe5ef; background: white; color: var(--ink); border-radius: 10px; padding: 11px; font: inherit; font-size: 13px; outline: none; }
+    .geo-key-row input:focus, .geo-search-row input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px #4c66e41a; }
+    .geo-key-row button, .geo-search-row button { flex: 0 0 auto; border: 0; border-radius: 10px; background: var(--primary); color: white; font-size: 12px; font-weight: 800; padding: 0 13px; cursor: pointer; }
+    .geo-key-row button:hover, .geo-search-row button:hover { background: #394fcb; }
+    .geo-key-row button:disabled, .geo-search-row button:disabled { opacity: .5; cursor: wait; }
+    .geo-clear-key { border: 0; background: transparent; padding: 8px 0 0; color: #a15469; font-size: 11px; cursor: pointer; }
+    .geo-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .geo-chip { border: 1px solid #e0e6f3; border-radius: 999px; background: #fff; color: #63738b; font: inherit; font-size: 11px; font-weight: 700; padding: 8px 10px; cursor: pointer; }
+    .geo-chip:hover, .geo-chip[data-active="true"] { background: var(--primary-soft); border-color: #bcc7fc; color: var(--primary); }
+    .geo-chip:disabled { opacity: .55; cursor: wait; }
+    .geo-meta { margin: 12px 0 9px; display: flex; gap: 9px; align-items: center; flex-wrap: wrap; justify-content: space-between; font-size: 10px; color: #8290a4; }
+    .geo-key-state { color: #7184a0; font-weight: 700; }
+    .geo-key-state.is-ready { color: #178f68; }
+    .geo-results { max-height: 310px; overflow-y: auto; display: grid; gap: 7px; scrollbar-width: thin; }
+    .geo-empty { border: 1px dashed #dce3f0; background: rgba(255,255,255,.82); border-radius: 11px; padding: 14px 12px; font-size: 12px; line-height: 1.65; color: #8290a4; }
+    .geo-empty.is-error { color: #ba4961; border-color: #f1cbd3; background: #fff9fa; }
+    .geo-result { padding: 12px; background: #fff; border: 1px solid #e7ebf3; border-radius: 12px; }
+    .geo-result-top { display: flex; align-items: flex-start; gap: 8px; }
+    .geo-result-icon { border-radius: 9px; background: #eff2fb; flex: 0 0 30px; height: 30px; display: grid; place-items: center; font-size: 16px; }
+    .geo-result-content { min-width: 0; flex: 1; }
+    .geo-result-title { font-size: 12px; font-weight: 800; line-height: 1.4; overflow-wrap: anywhere; }
+    .geo-result-address { font-size: 11px; line-height: 1.5; color: #8591a5; margin-top: 3px; overflow-wrap: anywhere; }
+    .geo-result-actions { display: flex; gap: 7px; margin-top: 10px; }
+    .geo-result-actions button { flex: 1; border: 1px solid #dfe5f1; background: white; color: #586983; border-radius: 8px; padding: 8px 6px; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+    .geo-result-actions button:hover { border-color: #bcc7fc; background: #f8f9ff; }
+    .geo-result-actions .geo-save { background: var(--primary-soft); color: var(--primary); border-color: #e1e7ff; }
+    .geo-result-actions button:disabled { opacity: .55; cursor: default; }
+    .geo-attribution { font-size: 10px; color: #9aa5b6; margin-top: 12px; line-height: 1.5; }
+    .geo-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .geo-settings-button:focus-visible, .geo-chip:focus-visible, .geo-key-row button:focus-visible, .geo-search-row button:focus-visible,
+    .geo-result-actions button:focus-visible { outline: 3px solid #aebcff; outline-offset: 2px; }
+    @media (max-width: 540px) { .geo-search { padding: 15px; } }
+
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><div class="brand-icon" aria-hidden="true">S</div><span>SEOUL TRIP MAP</span></div>
+      <div class="top-caption">나만의 서울 여행 컬렉션 ✦</div>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div class="eyebrow">Discover Seoul</div>
+        <h1>서울에서 가보고 싶은 장소를 한눈에!</h1>
+        <p>서울의 아름다운 명소를 모으고, 지도에서 나만의 여행지를 추가해 보세요.</p>
+      </section>
+
+      <div class="layout">
+        <aside class="panel" aria-labelledby="places-title">
+          <div class="section-head"><h2 id="places-title">여행 장소</h2><span class="count" id="place-count">3곳</span></div>
+          <div class="add-actions">
+            <button id="add-place-btn" class="add-button" type="button">＋ 새로운 여행 장소 추가</button>
+            <span class="save-note">추가한 장소는 이 브라우저에 자동 저장돼요.</span>
+          </div>
+
+          <!-- Geoapify: 장소명/주소 검색 및 현재 선택한 관광지 주변 탐색 -->
+          <section class="geo-search" aria-labelledby="geo-title">
+            <div class="geo-heading">
+              <h3 id="geo-title">🔎 장소 검색 · 주변 탐색</h3>
+              <button type="button" id="geo-settings-btn" class="geo-settings-button" aria-expanded="false" aria-controls="geo-key-panel">⚙ API 키 설정</button>
+            </div>
+            <form id="geo-key-panel" class="geo-key-panel" hidden>
+              <label for="geo-api-key">Geoapify 무료 API 키</label>
+              <div class="geo-key-row">
+                <input id="geo-api-key" type="password" placeholder="Geoapify API 키 입력" autocomplete="off" spellcheck="false" required />
+                <button type="submit">연결</button>
+              </div>
+              <button id="geo-clear-key" type="button" class="geo-clear-key">저장된 키 삭제</button>
+              <p><a href="https://myprojects.geoapify.com/" target="_blank" rel="noopener noreferrer">무료 키 발급받기 ↗</a> · 키는 현재 브라우저에 저장됩니다. 공개용 웹사이트에서는 출처 제한과 서버 보관을 권장합니다.</p>
+            </form>
+            <form id="geo-search-form" role="search">
+              <label class="geo-sr-only" for="geo-query">관광지 또는 주소 검색</label>
+              <div class="geo-search-row">
+                <input id="geo-query" type="search" maxlength="90" placeholder="관광지·장소명·주소 검색" required autocomplete="off" />
+                <button id="geo-search-submit" type="submit">검색</button>
+              </div>
+            </form>
+            <div class="geo-quick" aria-label="선택한 장소 근처 찾기">
+              <button type="button" class="geo-chip" data-geo-category="catering.cafe" data-geo-label="카페">☕ 카페</button>
+              <button type="button" class="geo-chip" data-geo-category="catering.restaurant" data-geo-label="음식점">🍽️ 음식점</button>
+              <button type="button" class="geo-chip" data-geo-category="leisure.park" data-geo-label="공원">🌳 공원</button>
+              <button type="button" class="geo-chip" data-geo-category="tourism.attraction" data-geo-label="관광지">🏛️ 관광지</button>
+            </div>
+            <div class="geo-meta"><span id="geo-anchor">📍 경복궁 주변 약 2km</span><span class="geo-key-state" id="geo-key-status">API 키 필요</span></div>
+            <div class="geo-results" id="geo-results" aria-live="polite" aria-label="Geoapify 장소 검색 결과">
+              <div class="geo-empty">위에서 장소를 검색하거나 주변 카테고리를 선택해 보세요.</div>
+            </div>
+            <p class="geo-attribution">검색 데이터: <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></p>
+          </section>
+          <form class="place-form" id="place-form" hidden>
+            <h3>새로운 여행 장소</h3>
+            <p class="hint">지도에서 선택한 위치에 이름과 소개를 적어주세요.</p>
+            <div class="field">
+              <label for="place-name">장소 이름 *</label>
+              <input id="place-name" type="text" placeholder="예: 북촌한옥마을" maxlength="40" required />
+            </div>
+            <div class="field">
+              <label for="place-category">장소 유형</label>
+              <select id="place-category">
+                <option value="tour">🏯 관광·문화</option>
+                <option value="nature">🌳 자연·휴식</option>
+                <option value="food">☕ 카페·맛집</option>
+                <option value="etc">📍 기타 장소</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="place-description">간단한 소개</label>
+              <textarea id="place-description" maxlength="180" placeholder="이 장소에 가고 싶은 이유나 메모를 적어주세요."></textarea>
+            </div>
+            <div class="field">
+              <label for="place-coordinates">선택한 위치 (위도, 경도)</label>
+              <input id="place-coordinates" type="text" readonly />
+            </div>
+            <div class="form-buttons">
+              <button type="submit" class="add-button">장소 저장하기</button>
+              <button type="button" id="cancel-place" class="subtle-button">취소</button>
+            </div>
+          </form>
+          <div class="place-list" id="place-list" aria-label="서울 여행 장소 목록"></div>
+          <p class="panel-foot">* 장소를 누르면 지도가 이동해요. 직접 추가한 장소는 삭제할 수 있습니다.</p>
+        </aside>
+
+        <section class="map-panel" aria-labelledby="map-title">
+          <div class="map-header">
+            <div><h2 id="map-title">서울 여행 지도</h2><p>지도에서 원하는 위치를 클릭해 장소를 저장하세요.</p></div>
+            <div class="status" id="map-status"><span class="status-dot"></span><span id="map-status-text">연결 준비 중</span></div>
+          </div>
+          <div class="map-stage">
+            <div id="map" aria-label="여행 장소 마커가 표시된 Google 지도"></div>
+            <div class="map-tip" id="map-tip" hidden>📍 <strong>지도 빈 곳을 클릭</strong>하면 새로운 장소를 추가할 수 있어요.</div>
+            <div class="map-placeholder" id="map-placeholder" role="status" aria-live="polite">
+              <div class="placeholder-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 18l-6 3V6l6-3m0 15 6 3m-6-3V3m6 18 6-3V3l-6 3m0 15V6m0 0L9 3" />
+                </svg>
+              </div>
+              <h3 id="map-message-title">Google 지도 연결 준비</h3>
+              <p id="map-message-text">Maps Demo Key를 입력하면 지도가 표시됩니다.</p>
+              <div class="selected-place"><small>현재 선택한 장소</small><strong id="selected-name">경복궁</strong></div>
+            </div>
+          </div>
+          <div class="map-footer"><span>📍 Seoul, South Korea</span><span id="footer-selection">경복궁 선택됨</span></div>
+        </section>
+      </div>
+
+      <section class="weather-dashboard" aria-labelledby="weather-title">
+        <div class="weather-heading">
+          <div>
+            <span class="weather-kicker">TRIP WEATHER</span>
+            <h2 id="weather-title">여행지 날씨 미리보기</h2>
+            <p>왼쪽 장소를 선택하면 그 위치의 날씨와 여행 예보가 바뀌어요.</p>
+          </div>
+          <div class="weather-controls">
+            <span class="weather-selected">📍 <span id="weather-place-name">경복궁</span></span>
+            <button type="button" id="weather-refresh" class="weather-refresh">↻ 날씨 새로고침</button>
+          </div>
+        </div>
+        <p class="weather-feedback" id="weather-feedback" role="status" aria-live="polite">날씨 정보를 확인하는 중입니다.</p>
+        <div class="weather-grid">
+          <div class="weather-current">
+            <div class="weather-current-top">
+              <div>
+                <span class="weather-small-label">현재 날씨</span>
+                <div class="weather-temperature" id="weather-temp">--°</div>
+                <div class="weather-condition" id="weather-condition">불러오는 중</div>
+              </div>
+              <span class="weather-main-icon" id="weather-icon" aria-hidden="true">🌤️</span>
+            </div>
+            <div class="weather-metrics">
+              <div class="weather-metric"><span>체감온도</span><strong id="weather-feels">--°</strong></div>
+              <div class="weather-metric"><span>습도</span><strong id="weather-humidity">--%</strong></div>
+              <div class="weather-metric"><span>바람</span><strong id="weather-wind">-- km/h</strong></div>
+              <div class="weather-metric"><span>현재 강수량</span><strong id="weather-precipitation">-- mm</strong></div>
+            </div>
+            <div class="weather-sun">
+              <span>🌅 일출 <strong id="weather-sunrise">--:--</strong></span>
+              <span>🌇 일몰 <strong id="weather-sunset">--:--</strong></span>
+            </div>
+            <div class="weather-advice">
+              <strong>✦ 오늘의 여행 팁</strong>
+              <span id="weather-advice">예보를 불러오면 여행에 참고할 팁을 안내할게요.</span>
+            </div>
+          </div>
+          <div class="weather-forecast">
+            <div>
+              <div class="weather-block-heading">
+                <h3>시간별 날씨와 강수 확률</h3><span>앞으로 24시간 · 2시간 간격</span>
+              </div>
+              <div class="weather-hours" id="weather-hours">
+                <div class="weather-empty" style="flex:1">시간별 예보를 불러오는 중입니다.</div>
+              </div>
+            </div>
+            <div>
+              <div class="weather-block-heading">
+                <h3>7일간 날씨</h3><span>최고·최저 기온과 일 최대 강수 확률</span>
+              </div>
+              <div class="weather-days" id="weather-days">
+                <div class="weather-empty" style="grid-column:1/-1">주간 예보를 불러오는 중입니다.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="weather-attribution">
+          <span>기상 예측 모델 기반 참고용 정보이며 실제 현장 날씨와 차이가 있을 수 있어요.</span>
+          <span>날씨 데이터: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo.com</a> · CC BY 4.0 · 서울 시간(KST)</span>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <script>
+    // [1] 여기에 본인의 Google Maps Demo Key를 입력하세요.
+    // https://developers.google.com/maps/documentation/javascript/demo-key
+    const GOOGLE_MAPS_API_KEY = "AIzaSyALXiFlATO5ootJ1q8fGlEYAayQhqCozYs";
+    // [Geoapify] Geoapify MyProjects에서 발급받은 키를 넣거나 화면의 ⚙ API 키 설정에 입력하세요.
+    const GEOAPIFY_API_KEY = "64328a076d83459ba833ee949e106e47";
+    const GEOAPIFY_KEY_STORAGE = "seoul-trip-geoapify-key-v1";
+    const STORAGE_KEY = "seoul-trip-map-places-v1";
+    const SEOUL_CENTER = { lat: 37.5665, lng: 126.9780 };
+    const CATEGORY = {
+      tour:   { name: "관광·문화", icon: "🏯" },
+      nature: { name: "자연·휴식", icon: "🌳" },
+      food:   { name: "카페·맛집", icon: "☕" },
+      etc:    { name: "기타 장소", icon: "📍" }
+    };
+
+    // [2] 기본 관광지는 변경/삭제되지 않습니다.
+    const defaultPlaces = [
+      { id: "gyeongbokgung", name: "경복궁", region: "종로구 · 역사/문화", icon: "🏯",
+        description: "조선 시대의 정취를 느끼며 고궁을 거닐 수 있는 서울의 대표 궁궐이에요.", lat: 37.5796, lng: 126.9770 },
+      { id: "nseoultower", name: "남산서울타워", region: "용산구 · 전망/야경", icon: "🗼",
+        description: "남산 정상에서 서울의 전경과 반짝이는 야경을 감상할 수 있어요.", lat: 37.5512, lng: 126.9882 },
+      { id: "seoulforest", name: "서울숲", region: "성동구 · 자연/휴식", icon: "🌳",
+        description: "넓은 녹지와 산책로에서 여유로운 휴식을 즐기기 좋은 도심 속 공원이에요.", lat: 37.5445, lng: 127.0374 }
+    ];
+
+    const $ = id => document.getElementById(id);
+    const markers = new Map();
+    let customPlaces = loadSavedPlaces();
+    let selectedPlaceId = defaultPlaces[0].id;
+    let googleMap = null;
+    let infoWindow = null;
+    let AdvancedMarkerElementClass = null;
+    let previewMarker = null;
+    let geoResults = [];
+    let geoResultMarkers = [];
+    let geoAbortController = null;
+    let geoRequestId = 0;
+    let geoRequestBusy = false;
+    const geoCache = new Map();
+    const GEO_CACHE_TTL = 5 * 60 * 1000;
+    let GeoPinElementClass = null;
+    let geoApiKey = readGeoApiKey();
+    let chosenPosition = null;
+    let toastTimer = null;
+    const WEATHER_CACHE_TTL = 10 * 60 * 1000;
+    const weatherCache = new Map();
+    let weatherAbortController = null;
+    let weatherRequestId = 0;
+
+    function allPlaces() { return [...defaultPlaces, ...customPlaces]; }
+
+    // 키를 입력하지 않아도 기존 지도·날씨·장소 추가 기능은 동작합니다.
+    function readGeoApiKey() {
+      if (GEOAPIFY_API_KEY && GEOAPIFY_API_KEY !== "YOUR_GEOAPIFY_API_KEY") return GEOAPIFY_API_KEY.trim();
+      try { return (localStorage.getItem(GEOAPIFY_KEY_STORAGE) || "").trim(); }
+      catch { return ""; }
+    }
+
+    function loadSavedPlaces() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        if (!Array.isArray(raw)) return [];
+        return raw.filter(place =>
+          place && typeof place.id === "string" && place.id.startsWith("custom-") &&
+          typeof place.name === "string" && place.name.trim().length > 0 && place.name.length <= 40 &&
+          typeof place.description === "string" && place.description.length <= 180 &&
+          typeof place.lat === "number" && place.lat >= -90 && place.lat <= 90 &&
+          typeof place.lng === "number" && place.lng >= -180 && place.lng <= 180 &&
+          Object.hasOwn(CATEGORY, place.category)
+        ).map(place => ({
+          id: place.id, name: place.name, description: place.description,
+          category: place.category, icon: CATEGORY[place.category].icon,
+          region: "내가 저장한 " + CATEGORY[place.category].name,
+          lat: place.lat, lng: place.lng, custom: true
+        }));
+      } catch (error) {
+        console.warn("저장된 장소를 불러오지 못했습니다.", error);
+        return [];
+      }
+    }
+
+    // 저장은 본인 브라우저 localStorage에서만 이루어집니다.
+    function persistPlaces(nextPlaces) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextPlaces.map(({ id, name, description, category, lat, lng }) =>
+          ({ id, name, description, category, lat, lng }))));
+        return true;
+      } catch (error) {
+        console.error("장소 저장 실패:", error);
+        showToast("브라우저 저장에 실패했습니다. 저장 공간 또는 개인정보 보호 설정을 확인해 주세요.");
+        return false;
+      }
+    }
+
+    function showToast(message) {
+      $("toast").textContent = message;
+      $("toast").hidden = false;
+      window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => { $("toast").hidden = true; }, 3500);
+    }
+    function setStatus(message, ready = false) {
+      $("map-status-text").textContent = message;
+      $("map-status").classList.toggle("is-ready", ready);
+    }
+    function setMapMessage(title, message) {
+      $("map-message-title").textContent = title;
+      $("map-message-text").textContent = message;
+      $("map-placeholder").hidden = false;
+    }
+
+    // 사용자 입력은 textContent로 렌더링해 HTML 삽입을 방지합니다.
+    function element(tag, className, textValue) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (textValue !== undefined) node.textContent = textValue;
+      return node;
+    }
+
+    function renderPlaces() {
+      const list = $("place-list");
+      list.replaceChildren();
+      $("place-count").textContent = `${allPlaces().length}곳`;
+
+      for (const place of allPlaces()) {
+        const row = element("div", "place-row");
+        const card = element("button", "place-card");
+        card.type = "button";
+        card.dataset.id = place.id;
+        card.setAttribute("aria-pressed", String(place.id === selectedPlaceId));
+        card.setAttribute("aria-label", `${place.name} 지도에서 보기`);
+
+        const cardTop = element("div", "place-card-top");
+        const icon = element("div", "place-icon", place.icon);
+        icon.setAttribute("aria-hidden", "true");
+        const textWrap = element("div");
+        textWrap.append(element("div", "place-name", place.name), element("div", "place-region", place.region));
+        cardTop.append(icon, textWrap);
+        const description = element("p", "place-description", place.description || "소개가 아직 없습니다.");
+        const cardBottom = element("div", "place-card-bottom");
+        cardBottom.append(element("span", "", place.custom ? "내가 저장한 장소" : "서울 추천 명소"));
+        cardBottom.append(element("span", "view-label", place.id === selectedPlaceId ? "선택됨 ✓" : "장소 선택 →"));
+        card.append(cardTop, description, cardBottom);
+        card.addEventListener("click", () => selectPlace(place.id));
+        row.append(card);
+
+        if (place.custom) {
+          const remove = element("button", "delete-button", "×");
+          remove.type = "button";
+          remove.setAttribute("aria-label", `${place.name} 삭제`);
+          remove.title = "저장한 장소 삭제";
+          remove.addEventListener("click", () => deletePlace(place.id));
+          row.append(remove);
+        }
+        list.append(row);
+      }
+    }
+
+    function createInfoContent(place) {
+      const content = element("div", "map-infowindow");
+      content.append(element("h3", "", place.name), element("p", "", place.description || "내가 저장한 여행 장소입니다."));
+      return content;
+    }
+
+    function selectPlace(id) {
+      const place = allPlaces().find(item => item.id === id);
+      if (!place) return;
+      selectedPlaceId = id;
+      document.querySelectorAll(".place-card").forEach(card => {
+        const current = card.dataset.id === id;
+        card.setAttribute("aria-pressed", String(current));
+        card.querySelector(".view-label").textContent = current ? "선택됨 ✓" : "장소 선택 →";
+      });
+      $("selected-name").textContent = place.name;
+      $("footer-selection").textContent = `${place.name} 선택됨`;
+      $("geo-anchor").textContent = `📍 ${place.name} 주변 약 2km`;
+      updateWeather(place); // 지도 상태와 무관하게 선택한 장소의 날씨를 갱신합니다.
+      if (googleMap && infoWindow) {
+        googleMap.panTo({ lat: place.lat, lng: place.lng });
+        googleMap.setZoom(15);
+        const marker = markers.get(place.id);
+        if (marker) {
+          infoWindow.setContent(createInfoContent(place));
+          infoWindow.open({ map: googleMap, anchor: marker, shouldFocus: false });
+        }
+      }
+    }
+
+    function addMarker(place) {
+      if (!googleMap || !AdvancedMarkerElementClass) return;
+      const marker = new AdvancedMarkerElementClass({
+        map: googleMap,
+        position: { lat: place.lat, lng: place.lng },
+        title: place.name,
+        gmpClickable: true
+      });
+      marker.addEventListener("gmp-click", () => selectPlace(place.id));
+      markers.set(place.id, marker);
+    }
+
+    function clearPreview() {
+      if (previewMarker) {
+        previewMarker.map = null;
+        previewMarker = null;
+      }
+    }
+
+    function openPlaceForm(position) {
+      if (!position || !Number.isFinite(position.lat) || !Number.isFinite(position.lng)) return;
+      chosenPosition = { lat: position.lat, lng: position.lng };
+      clearPreview();
+      if (googleMap && AdvancedMarkerElementClass) {
+        previewMarker = new AdvancedMarkerElementClass({
+          map: googleMap, position: chosenPosition, title: "새 장소 위치"
+        });
+      }
+      $("place-form").reset();
+      $("place-coordinates").value = `${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}`;
+      $("place-form").hidden = false;
+      $("map-tip").hidden = false;
+      $("map-tip").innerHTML = "📍 위치를 선택했어요! <strong>왼쪽에서 장소를 저장</strong>해 주세요.";
+      $("place-name").focus({ preventScroll: true });
+      if (window.matchMedia("(max-width: 900px)").matches) {
+        $("place-form").scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+
+    function cancelAdding() {
+      chosenPosition = null;
+      clearPreview();
+      $("place-form").reset();
+      $("place-form").hidden = true;
+      $("map-tip").innerHTML = "📍 <strong>지도 빈 곳을 클릭</strong>하면 새로운 장소를 추가할 수 있어요.";
+    }
+
+    function savePlace(event) {
+      event.preventDefault();
+      if (!chosenPosition) return showToast("먼저 지도에서 위치를 선택해 주세요.");
+      const name = $("place-name").value.trim();
+      const description = $("place-description").value.trim();
+      const category = $("place-category").value;
+      if (!name || name.length > 40 || description.length > 180 || !Object.hasOwn(CATEGORY, category)) {
+        return showToast("장소 이름과 소개를 확인해 주세요.");
+      }
+      const place = {
+        id: "custom-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9),
+        name, description, category,
+        region: "내가 저장한 " + CATEGORY[category].name,
+        icon: CATEGORY[category].icon,
+        lat: chosenPosition.lat, lng: chosenPosition.lng,
+        custom: true
+      };
+      const next = [...customPlaces, place];
+      if (!persistPlaces(next)) return;
+      customPlaces = next;
+      cancelAdding();
+      addMarker(place);
+      renderPlaces();
+      selectPlace(place.id);
+      renderGeoResults();
+      showToast(`'${place.name}' 장소를 저장했어요.`);
+    }
+
+    function deletePlace(id) {
+      const place = customPlaces.find(p => p.id === id);
+      if (!place || !window.confirm(`'${place.name}' 장소를 삭제할까요?`)) return;
+      const next = customPlaces.filter(p => p.id !== id);
+      if (!persistPlaces(next)) return;
+      customPlaces = next;
+      const marker = markers.get(id);
+      if (marker) marker.map = null;
+      markers.delete(id);
+      if (selectedPlaceId === id) {
+        infoWindow?.close();
+        selectedPlaceId = defaultPlaces[0].id;
+      }
+      renderPlaces();
+      selectPlace(selectedPlaceId);
+      renderGeoResults();
+      showToast(`'${place.name}' 장소를 삭제했어요.`);
+    }
+
+    $("add-place-btn").addEventListener("click", () => {
+      if (!googleMap) {
+        showToast("Google Maps Demo Key를 입력하고 지도를 연결해 주세요.");
+        return;
+      }
+      $("map-tip").hidden = false;
+      $("map-tip").innerHTML = "📍 <strong>추가할 위치를 지도에서 클릭</strong>해 주세요.";
+      $("map").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    $("cancel-place").addEventListener("click", cancelAdding);
+    $("place-form").addEventListener("submit", savePlace);
+    renderPlaces();
+
+
+
+    // [Geoapify] 장소 검색(Geocoding)과 선택 장소 주변 카테고리 검색(Places).
+    // 사용자가 검색/카테고리 버튼을 누를 때만 호출해 무료 요청 한도를 절약합니다.
+    function updateGeoKeyState() {
+      const connected = Boolean(geoApiKey);
+      $("geo-key-status").textContent = connected ? "API 키 설정됨" : "API 키 필요";
+      $("geo-key-status").classList.toggle("is-ready", connected);
+      if (!connected) {
+        $("geo-key-panel").hidden = false;
+        $("geo-settings-btn").setAttribute("aria-expanded", "true");
+      }
+    }
+    function openGeoKeyPanel() {
+      $("geo-key-panel").hidden = false;
+      $("geo-settings-btn").setAttribute("aria-expanded", "true");
+      $("geo-api-key").focus();
+    }
+    $("geo-settings-btn").addEventListener("click", () => {
+      const wasHidden = $("geo-key-panel").hidden;
+      $("geo-key-panel").hidden = !wasHidden;
+      $("geo-settings-btn").setAttribute("aria-expanded", String(wasHidden));
+      if (wasHidden) $("geo-api-key").focus();
+    });
+    $("geo-key-panel").addEventListener("submit", event => {
+      event.preventDefault();
+      const newKey = $("geo-api-key").value.trim();
+      if (!newKey) return showToast("Geoapify API 키를 입력해 주세요.");
+      geoAbortController?.abort();
+      ++geoRequestId;
+      setGeoLoading(false);
+      clearGeoResultMarkers();
+      geoResults = [];
+      geoApiKey = newKey;
+      geoCache.clear();
+      try { localStorage.setItem(GEOAPIFY_KEY_STORAGE, newKey); }
+      catch { showToast("API 키를 저장하지 못했습니다. 이번 화면에서만 사용할 수 있어요."); }
+      $("geo-api-key").value = "";
+      $("geo-key-panel").hidden = true;
+      $("geo-settings-btn").setAttribute("aria-expanded", "false");
+      updateGeoKeyState();
+      renderGeoResultsMessage("API 키를 설정했어요. 장소 이름을 검색하거나 주변 카테고리를 눌러보세요.");
+      showToast("Geoapify API 키가 설정됐어요.");
+    });
+    $("geo-clear-key").addEventListener("click", () => {
+      geoAbortController?.abort();
+      ++geoRequestId;
+      setGeoLoading(false);
+      geoApiKey = "";
+      geoCache.clear();
+      try { localStorage.removeItem(GEOAPIFY_KEY_STORAGE); }
+      catch { /* 저장소가 차단된 브라우저에서도 키 제거는 진행 */ }
+      $("geo-api-key").value = "";
+      clearGeoResultMarkers();
+      geoResults = [];
+      updateGeoKeyState();
+      renderGeoResultsMessage("API 키를 제거했어요. 다시 검색하려면 키를 입력해 주세요.");
+      showToast("저장된 Geoapify 키를 지웠어요.");
+    });
+
+    function renderGeoResultsMessage(message, isError = false) {
+      const item = element("div", "geo-empty" + (isError ? " is-error" : ""), message);
+      $("geo-results").replaceChildren(item);
+    }
+    function geoPlaceSaved(result) {
+      return allPlaces().some(place =>
+        Math.abs(place.lat - result.lat) < 0.00012 &&
+        Math.abs(place.lng - result.lng) < 0.00012
+      );
+    }
+    function clearGeoResultMarkers() {
+      for (const marker of geoResultMarkers) marker.map = null;
+      geoResultMarkers = [];
+    }
+    function showGeoResultOnMap(index) {
+      const item = geoResults[index];
+      if (!item) return;
+      if (!googleMap || !infoWindow) {
+        showToast("지도 연결이 안 되어도 결과의 '저장' 버튼으로 장소를 추가할 수 있어요.");
+        return;
+      }
+      googleMap.panTo({ lat: item.lat, lng: item.lng });
+      googleMap.setZoom(15);
+      const marker = geoResultMarkers[index];
+      if (marker) {
+        const content = element("div", "map-infowindow");
+        content.append(element("h3", "", item.name), element("p", "", item.address || "Geoapify 검색 결과"));
+        infoWindow.setContent(content);
+        infoWindow.open({ map: googleMap, anchor: marker, shouldFocus: false });
+      }
+    }
+    function renderGeoResultMarkers() {
+      clearGeoResultMarkers();
+      if (!googleMap || !AdvancedMarkerElementClass) return;
+      geoResults.forEach((place, index) => {
+        const pin = GeoPinElementClass ? new GeoPinElementClass({
+          background: "#eb955d", borderColor: "#bd6f3e", glyphColor: "#ffffff"
+        }) : null;
+        const options = {
+          map: googleMap, position: { lat: place.lat, lng: place.lng },
+          title: "검색 결과 · " + place.name, gmpClickable: true
+        };
+        if (pin) options.content = pin.element;
+        const marker = new AdvancedMarkerElementClass(options);
+        marker.addEventListener("gmp-click", () => showGeoResultOnMap(index));
+        geoResultMarkers.push(marker);
+      });
+    }
+    function renderGeoResults() {
+      const wrapper = $("geo-results");
+      wrapper.replaceChildren();
+      if (!geoResults.length) {
+        renderGeoResultsMessage("검색 결과가 없어요. 다른 검색어나 위치로 다시 시도해 보세요.");
+        return;
+      }
+      geoResults.forEach((result, index) => {
+        const card = element("div", "geo-result");
+        const top = element("div", "geo-result-top");
+        const icon = element("div", "geo-result-icon", CATEGORY[result.category]?.icon || "📍");
+        icon.setAttribute("aria-hidden", "true");
+        const content = element("div", "geo-result-content");
+        content.append(
+          element("div", "geo-result-title", result.name),
+          element("div", "geo-result-address", result.address || "좌표로 위치 확인 가능")
+        );
+        top.append(icon, content);
+        const buttons = element("div", "geo-result-actions");
+        const view = element("button", "", "지도 보기");
+        view.type = "button";
+        view.addEventListener("click", () => showGeoResultOnMap(index));
+        const save = element("button", "geo-save", geoPlaceSaved(result) ? "저장됨 ✓" : "＋ 내 장소에 저장");
+        save.type = "button";
+        save.disabled = geoPlaceSaved(result);
+        save.addEventListener("click", () => {
+          openPlaceForm({ lat: result.lat, lng: result.lng });
+          $("place-name").value = result.name.slice(0, 40);
+          $("place-category").value = result.category;
+          $("place-description").value = (result.address || "").slice(0, 180);
+          showToast("검색 결과를 장소 추가 폼에 입력했어요. 확인 후 저장해 주세요.");
+        });
+        buttons.append(view, save);
+        card.append(top, buttons);
+        wrapper.append(card);
+      });
+    }
+    function geoResultFromGeocoding(data) {
+      return (Array.isArray(data.results) ? data.results : []).map(p => ({
+        name: String(p.name || p.address_line1 || p.formatted || "주소 검색 결과").trim().slice(0, 80),
+        address: String(p.formatted || p.address_line2 || "").slice(0, 190),
+        lat: Number(p.lat), lng: Number(p.lon), category: "tour"
+      })).filter(p => p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng));
+    }
+    function geoResultFromPlaces(data, category) {
+      const outputCategory = category === "leisure.park" ? "nature" :
+        category.startsWith("catering.") ? "food" : "tour";
+      return (Array.isArray(data.features) ? data.features : []).map(feature => {
+        const p = feature.properties || {};
+        const coords = feature.geometry?.coordinates || [];
+        return {
+          name: String(p.name || p.address_line1 || p.formatted || "이름 없는 장소").trim().slice(0, 80),
+          address: String(p.formatted || p.address_line2 || "").slice(0, 190),
+          lat: Number(p.lat ?? coords[1]), lng: Number(p.lon ?? coords[0]),
+          category: outputCategory
+        };
+      }).filter(p => p.name && p.name !== "이름 없는 장소" && Number.isFinite(p.lat) && Number.isFinite(p.lng));
+    }
+    function dedupeGeoResults(items) {
+      const seen = new Set();
+      return items.filter(item => {
+        const id = item.lat.toFixed(4) + ":" + item.lng.toFixed(4) + ":" + item.name;
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      }).slice(0, 12);
+    }
+    function geoApiError(error) {
+      if (error.status === 401 || error.status === 403) return "인증에 실패했어요. Geoapify API 키 또는 도메인 제한을 확인해 주세요.";
+      if (error.status === 429) return "무료 API 사용 한도나 요청 속도를 초과했어요. 잠시 후 다시 시도해 주세요.";
+      return "검색 정보를 불러오지 못했어요. 연결 상태나 API 설정을 확인해 주세요.";
+    }
+    function setGeoLoading(busy) {
+      geoRequestBusy = busy;
+      $("geo-search-submit").disabled = busy;
+      document.querySelectorAll(".geo-chip").forEach(button => { button.disabled = busy; });
+    }
+    async function runGeoSearch(url, mode, category = "tour", title = "검색") {
+      if (!geoApiKey) {
+        openGeoKeyPanel();
+        renderGeoResultsMessage("Geoapify 무료 API 키를 먼저 연결해 주세요.", true);
+        return;
+      }
+      geoAbortController?.abort();
+      const requestId = ++geoRequestId;
+      const controller = new AbortController();
+      geoAbortController = controller;
+      setGeoLoading(true);
+      renderGeoResultsMessage(title + " 결과를 불러오는 중이에요...");
+      try {
+        const cacheKey = url.toString().replace(/apiKey=[^&]+/, "apiKey=[masked]");
+        const cached = geoCache.get(cacheKey);
+        let data;
+        if (cached && Date.now() - cached.savedAt < GEO_CACHE_TTL) {
+          data = cached.data;
+        } else {
+          const response = await fetch(url, { signal: controller.signal });
+          if (!response.ok) {
+            const err = new Error("Geoapify HTTP " + response.status);
+            err.status = response.status;
+            throw err;
+          }
+          data = await response.json();
+          geoCache.set(cacheKey, { data, savedAt: Date.now() });
+        }
+        if (requestId !== geoRequestId) return;
+        geoResults = dedupeGeoResults(mode === "places" ? geoResultFromPlaces(data, category) : geoResultFromGeocoding(data));
+        renderGeoResultMarkers();
+        renderGeoResults();
+        $("geo-anchor").textContent = `${title} · ${geoResults.length}개 결과`;
+      } catch (error) {
+        if (error.name === "AbortError" || requestId !== geoRequestId) return;
+        console.warn("Geoapify 검색 실패:", error);
+        clearGeoResultMarkers();
+        geoResults = [];
+        renderGeoResultsMessage(geoApiError(error), true);
+      } finally {
+        if (requestId === geoRequestId) setGeoLoading(false);
+      }
+    }
+    $("geo-search-form").addEventListener("submit", event => {
+      event.preventDefault();
+      const text = $("geo-query").value.trim();
+      if (!text) return;
+      if (!geoApiKey) return runGeoSearch(null, "geocode");
+      document.querySelectorAll(".geo-chip").forEach(b => b.dataset.active = "false");
+      const active = allPlaces().find(p => p.id === selectedPlaceId) || defaultPlaces[0];
+      const url = new URL("https://api.geoapify.com/v1/geocode/search");
+      url.search = new URLSearchParams({
+        text, format: "json", filter: "countrycode:kr",
+        bias: `proximity:${active.lng},${active.lat}`,
+        lang: "ko", limit: "12", apiKey: geoApiKey
+      });
+      runGeoSearch(url, "geocode", "tour", `“${text}” 검색`);
+    });
+    document.querySelectorAll(".geo-chip").forEach(button => {
+      button.addEventListener("click", () => {
+        const category = button.dataset.geoCategory;
+        const label = button.dataset.geoLabel;
+        if (!geoApiKey) return runGeoSearch(null, "places");
+        document.querySelectorAll(".geo-chip").forEach(b => b.dataset.active = String(b === button));
+        const active = allPlaces().find(p => p.id === selectedPlaceId) || defaultPlaces[0];
+        const url = new URL("https://api.geoapify.com/v2/places");
+        url.search = new URLSearchParams({
+          categories: category,
+          filter: `circle:${active.lng},${active.lat},2000`,
+          bias: `proximity:${active.lng},${active.lat}`,
+          limit: "12", apiKey: geoApiKey
+        });
+        runGeoSearch(url, "places", category, `${active.name} 근처 ${label}`);
+      });
+    });
+    updateGeoKeyState();
+
+    // [4] Open-Meteo Weather Forecast API — 별도 키, 회원가입, 카드, SDK 필요 없음.
+    // 서울 지역의 선택 장소 좌표로 현재·시간별·7일 예보를 가져옵니다.
+    // 요청 수를 줄이기 위해 같은 위치는 최대 10분간 메모리에 캐시합니다.
+    function weatherVisual(code, isDay = true) {
+      const w = Number(code);
+      if (w === 0) return { icon: isDay ? "☀️" : "🌙", label: "맑음" };
+      if (w === 1 || w === 2) return { icon: isDay ? "🌤️" : "☁️", label: "대체로 맑음" };
+      if (w === 3) return { icon: "☁️", label: "흐림" };
+      if (w === 45 || w === 48) return { icon: "🌫️", label: "안개" };
+      if (w >= 51 && w <= 57) return { icon: "🌦️", label: "이슬비" };
+      if (w >= 61 && w <= 67) return { icon: "🌧️", label: "비" };
+      if (w >= 71 && w <= 77) return { icon: "❄️", label: "눈" };
+      if (w >= 80 && w <= 82) return { icon: "🌧️", label: "소나기" };
+      if (w >= 85 && w <= 86) return { icon: "🌨️", label: "눈 소나기" };
+      if (w >= 95) return { icon: "⛈️", label: "뇌우" };
+      return { icon: "🌡️", label: "날씨 정보" };
+    }
+
+    function valueUnit(value, unit, decimals = 0) {
+      return typeof value === "number" && Number.isFinite(value)
+        ? value.toFixed(decimals) + unit : "--" + unit;
+    }
+
+    function weatherDayLabel(date, index) {
+      if (index === 0) return "오늘";
+      if (index === 1) return "내일";
+      return new Intl.DateTimeFormat("ko-KR", { weekday: "short", timeZone: "Asia/Seoul" })
+        .format(new Date(date + "T12:00:00+09:00"));
+    }
+
+    function setWeatherFeedback(message, isError = false) {
+      $("weather-feedback").textContent = message;
+      $("weather-feedback").dataset.error = String(isError);
+    }
+
+    function showWeatherUnavailable(message) {
+      $("weather-temp").textContent = "--°";
+      $("weather-condition").textContent = "날씨 확인 불가";
+      $("weather-icon").textContent = "🌥️";
+      for (const id of ["weather-feels", "weather-humidity", "weather-wind", "weather-precipitation"]) {
+        $(id).textContent = "--";
+      }
+      $("weather-sunrise").textContent = "--:--";
+      $("weather-sunset").textContent = "--:--";
+      $("weather-advice").textContent = "잠시 후 다시 시도해 주세요.";
+      $("weather-hours").replaceChildren(element("div", "weather-empty", "시간별 예보를 표시할 수 없습니다."));
+      $("weather-days").replaceChildren(element("div", "weather-empty", "주간 예보를 표시할 수 없습니다."));
+      setWeatherFeedback(message, true);
+    }
+
+    function makeForecastURL(place) {
+      const url = new URL("https://api.open-meteo.com/v1/forecast");
+      const params = {
+        latitude: place.lat,
+        longitude: place.lng,
+        current: "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,is_day",
+        hourly: "temperature_2m,weather_code,precipitation_probability",
+        daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset",
+        timezone: "Asia/Seoul",
+        forecast_days: 7
+      };
+      Object.entries(params).forEach(([key, val]) => url.searchParams.set(key, val));
+      return url.toString();
+    }
+
+    function renderWeather(data) {
+      const c = data.current;
+      const d = data.daily;
+      const h = data.hourly;
+      const condition = weatherVisual(c.weather_code, c.is_day === 1);
+      $("weather-temp").textContent = valueUnit(c.temperature_2m, "°");
+      $("weather-condition").textContent = condition.label;
+      $("weather-icon").textContent = condition.icon;
+      $("weather-feels").textContent = valueUnit(c.apparent_temperature, "°");
+      $("weather-humidity").textContent = valueUnit(c.relative_humidity_2m, "%");
+      $("weather-wind").textContent = valueUnit(c.wind_speed_10m, " km/h");
+      $("weather-precipitation").textContent = valueUnit(c.precipitation, " mm", 1);
+      $("weather-sunrise").textContent = d.sunrise?.[0]?.slice(11,16) || "--:--";
+      $("weather-sunset").textContent = d.sunset?.[0]?.slice(11,16) || "--:--";
+
+      const nowHour = (c.time || "").slice(0,13) + ":00";
+      const start = Math.max(0, h.time.findIndex(time => time >= nowHour));
+      const nextHours = h.time.slice(start, start+6);
+      const risk = nextHours.reduce((max, _, idx) =>
+        Math.max(max, Number(h.precipitation_probability[start + idx]) || 0), 0);
+      let advice = "야외 산책을 즐기기 좋은지 이동 전 예보를 한 번 더 확인해 보세요.";
+      if (risk >= 60) advice = "앞으로 6시간 내 비·눈 가능성이 높아요. 우산과 실내 대체 코스를 준비하세요.";
+      else if (typeof c.wind_speed_10m === "number" && c.wind_speed_10m >= 35)
+        advice = "바람이 강한 편이에요. 전망대나 강변 산책 전 바람 예보를 확인하세요.";
+      else if (typeof c.apparent_temperature === "number" && c.apparent_temperature <= 0)
+        advice = "체감온도가 낮아요. 경복궁·서울숲 같은 야외 장소에는 따뜻한 옷을 챙기세요.";
+      else if (typeof c.apparent_temperature === "number" && c.apparent_temperature >= 30)
+        advice = "더운 날씨예요. 물과 휴식 시간을 넉넉히 준비하세요.";
+      else if (risk >= 30) advice = "비가 올 수도 있어요. 작은 우산을 챙기면 좋아요.";
+      $("weather-advice").textContent = advice;
+
+      const hours = $("weather-hours");
+      hours.replaceChildren();
+      for (let i = start; i < Math.min(start + 24, h.time.length); i += 2) {
+        const item = element("div", "weather-hour");
+        const dayPrefix = h.time[i].slice(0,10) === c.time.slice(0,10) ? "" : "익일 ";
+        item.append(
+          element("span", "weather-hour-time", dayPrefix + h.time[i].slice(11,16)),
+          element("span", "weather-hour-icon", weatherVisual(h.weather_code?.[i], true).icon),
+          element("span", "weather-hour-temp", valueUnit(h.temperature_2m?.[i], "°")),
+          element("span", "weather-hour-rain", "☂ " + valueUnit(h.precipitation_probability?.[i], "%"))
+        );
+        hours.append(item);
+      }
+      if (!hours.childElementCount) hours.append(element("div", "weather-empty", "시간별 예보가 없습니다."));
+
+      const days = $("weather-days");
+      days.replaceChildren();
+      d.time.slice(0,7).forEach((date, i) => {
+        const item = element("div", "weather-day");
+        const temp = element("span", "weather-day-temp", valueUnit(d.temperature_2m_max?.[i], "°") + " / ");
+        temp.append(element("small", "", valueUnit(d.temperature_2m_min?.[i], "°")));
+        item.append(
+          element("span", "weather-day-name", weatherDayLabel(date, i)),
+          element("span", "weather-day-icon", weatherVisual(d.weather_code?.[i], true).icon),
+          temp,
+          element("span", "weather-day-rain", "☂ " + valueUnit(d.precipitation_probability_max?.[i], "%"))
+        );
+        days.append(item);
+      });
+      if (!days.childElementCount) days.append(element("div", "weather-empty", "주간 예보가 없습니다."));
+      setWeatherFeedback("기준 시각: " + (c.time?.replace("T", " ") || "확인 불가") + " (KST) · Open-Meteo 예보");
+    }
+
+    async function updateWeather(place, force = false) {
+      $("weather-place-name").textContent = place.name;
+      const requestId = ++weatherRequestId;
+      weatherAbortController?.abort();
+      const cacheKey = `${place.lat.toFixed(4)},${place.lng.toFixed(4)}`;
+      const cached = weatherCache.get(cacheKey);
+      if (!force && cached && Date.now() - cached.savedAt < WEATHER_CACHE_TTL) {
+        renderWeather(cached.data);
+        $("weather-refresh").disabled = false;
+        return;
+      }
+      const controller = new AbortController();
+      weatherAbortController = controller;
+      $("weather-refresh").disabled = true;
+      setWeatherFeedback(`${place.name} 날씨를 불러오고 있어요...`);
+      try {
+        const response = await fetch(makeForecastURL(place), { signal: controller.signal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (data.error || !data.current || !Array.isArray(data.hourly?.time) || !Array.isArray(data.daily?.time)) {
+          throw new Error(data.reason || "날씨 데이터 형식 오류");
+        }
+        if (requestId !== weatherRequestId) return;
+        weatherCache.set(cacheKey, { data, savedAt: Date.now() });
+        renderWeather(data);
+      } catch (error) {
+        if (error.name === "AbortError" || requestId !== weatherRequestId) return;
+        console.error("Open-Meteo 날씨 요청 실패:", error);
+        showWeatherUnavailable("날씨 정보를 가져오지 못했습니다. 인터넷 연결을 확인한 뒤 새로고침해 주세요.");
+      } finally {
+        if (requestId === weatherRequestId) $("weather-refresh").disabled = false;
+      }
+    }
+
+    $("weather-refresh").addEventListener("click", () => {
+      const place = allPlaces().find(p => p.id === selectedPlaceId);
+      if (place) updateWeather(place, true);
+    });
+    // Google 지도가 연결되지 않아도 날씨는 별도로 사용할 수 있습니다.
+    updateWeather(defaultPlaces[0]);
+
+    // [3] Google 공식 Dynamic Library Import 방식. maps/marker 외 추가 API는 불러오지 않습니다.
+    function loadGoogleMapsApi() {
+      (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
+        key: GOOGLE_MAPS_API_KEY, v: "weekly", language: "ko", region: "KR"
+      });
+    }
+
+    async function initMap() {
+      setStatus("지도 불러오는 중");
+      setMapMessage("Google 지도 불러오는 중", "서울 여행 지도를 준비하고 있어요.");
+      const [{ Map: GoogleMap, InfoWindow }, { AdvancedMarkerElement, PinElement }] = await Promise.all([
+        google.maps.importLibrary("maps"),
+        google.maps.importLibrary("marker")
+      ]);
+      AdvancedMarkerElementClass = AdvancedMarkerElement;
+      GeoPinElementClass = PinElement;
+      googleMap = new GoogleMap($("map"), {
+        center: SEOUL_CENTER, zoom: 12,
+        mapId: "DEMO_MAP_ID",  // 고급 마커에 필요한 테스트용 Map ID
+        mapTypeControl: false, streetViewControl: false,
+        fullscreenControl: true, zoomControl: true,
+        gestureHandling: "cooperative", clickableIcons: false
+      });
+      infoWindow = new InfoWindow({ maxWidth: 280 });
+      allPlaces().forEach(addMarker);
+      renderGeoResultMarkers(); // API 검색 결과가 먼저 도착했다면 지도에도 표시합니다.
+      // 지도에서 클릭한 좌표를 받아 사용자가 직접 새 장소를 등록합니다.
+      googleMap.addListener("click", event => {
+        if (event.latLng) openPlaceForm(event.latLng.toJSON());
+      });
+      $("map-placeholder").hidden = true;
+      $("map-tip").hidden = false;
+      setStatus("지도 연결됨", true);
+    }
+
+    if (GOOGLE_MAPS_API_KEY === "YOUR_GOOGLE_MAPS_API_KEY" || !GOOGLE_MAPS_API_KEY.trim()) {
+      setStatus("API 키 필요");
+      setMapMessage("Google Maps Demo Key 입력 필요", "HTML 하단의 YOUR_GOOGLE_MAPS_API_KEY를 본인의 데모 키로 교체해 주세요.");
+    } else {
+      loadGoogleMapsApi();
+      initMap().catch(error => {
+        console.error("Google 지도 초기화 실패:", error);
+        googleMap = null;
+        infoWindow = null;
+        setStatus("지도 연결 실패");
+        setMapMessage("지도를 불러오지 못했어요", "데모 키 사용 조건, 사용량 제한, 브라우저 콘솔 메시지를 확인해 주세요.");
+      });
+    }
+  </script>
+</body>
+</html>
